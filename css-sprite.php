@@ -6,9 +6,12 @@
  *
  * Combine any number of images in a given directory into a select few composite 
  * CSS Sprite images. (e.g. one for horizontally-repeating, one for vertically-
- * repeating, and one for images that do not repeat like buttons.) Note that 
- * images which repeat on both the X and Y axis, like tiled backgrounds, must be
- * contained within their own image and cannot be used in sprites.
+ * repeating, and one for images that do not repeat like buttons.) 
+ * 
+ * Also generates an accompanying CSS stylesheet you can copy/paste from and use
+ * as a guide in obtaining the x-y coordinates as well as the width/height 
+ * dimensions of your sliced images as they are located in the corresponding 
+ * composite image.
  * 
  * Requires the GD image library PECL extension for PHP to be installed.
  * Requires PHP-CGI to be installed.
@@ -53,7 +56,11 @@ Naming files:
     border1-bottommiddle-x.png
     border1-middleright-y.png
 
-  You can also modify the files as they are composited.
+  Note that images which repeat on BOTH the X and Y axis, such as tiled 
+  backgrounds, must be contained within their own image and cannot be used in 
+  CSS sprites for obvious reasons.
+    
+  You can also modify the files as they are composited:
   
   -pr<pixels> = add padding to the right of the image 
   -pl<pixels> = add padding to the left of the image
