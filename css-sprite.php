@@ -1,18 +1,18 @@
-#!/usr/bin/php-cgi -q
+#!/usr/bin/php-cgi -qC
 <?php
 
 /**
  * CSS Sprite Generator
  *
- * Combine any number of images in a given directory into a select few composite 
+ * Combine any number of images in a given directory into a select few composite
  * CSS Sprite images. (e.g. one for horizontally-repeating, one for vertically-
- * repeating, and one for images that do not repeat like buttons.) 
- * 
- * Also generates an accompanying CSS stylesheet you can copy/paste from and use
- * as a guide in obtaining the x-y coordinates as well as the width/height 
- * dimensions of your sliced images as they are located in the corresponding 
+ * repeating, and one for images that do not repeat like buttons.)
+ *
+ * Also generates an accompanying CSS or SASS stylesheet you can copy/paste from 
+ * and use as a guide in obtaining the x-y coordinates as well as the width/height
+ * dimensions of your sliced images as they are located in the corresponding
  * composite image.
- * 
+ *
  * Requires the GD image library PECL extension for PHP to be installed.
  * Requires PHP-CGI to be installed.
  *
@@ -24,7 +24,7 @@
  * @category   Tools
  * @package    SmullinDesign
  * @author     Mike Smullin <mike@smullindesign.com>
- * @copyright  Copyright 2006-2010, Smullin Design and Development, LLC (http://www.smullindesign.com) 
+ * @copyright  Copyright 2006-2010, Smullin Design and Development, LLC (http://www.smullindesign.com)
  * @license    http://www.opensource.org/licenses/mit-license.php The MIT License
  * @version    SVN: $Id$
  * @link       http://www.mikesmullin.com/
@@ -35,38 +35,39 @@ if (isset($_GET['--help']) || isset($_GET['-h']) || isset($_GET['-?']) || isset(
 CSS Sprite Generator
 Usage: css-sprite.php [OPTION]... [PATH]
 
-  --path <path>     Path where sliced images reside. Default is current working 
+  --path <path>     Path where sliced images reside. Default is current working
                     directory where the program is launched.
-  --prefix <prefix> Optional prefix used in output filenames for composite 
-                    images. Default is "sprites". 
+  --prefix <prefix> Optional prefix used in output filenames for composite
+                    images. Default is "sprites".
   --matte <rgb>     RGB color matte. Default is "255,255,255" which is white.
                     For PNG 24-bit transparency, use "transparent".
+  --sass            Output SASS format instead of the default CSS stylesheet.
 
 Naming files:
 
   The suffix of your sliced image filenames determines how they are composited:
-  
-  -x = horizontally repeating (repeat-x) 
+
+  -x = horizontally repeating (repeat-x)
   -y = vertically repeating (repeat-y)
   -n = not repeating (no-repeat)
-  
+
   Filename examples:
-   
+
     border1-bottomleftcorner-n.png
     border1-bottommiddle-x.png
     border1-middleright-y.png
 
-  Note that images which repeat on BOTH the X and Y axis, such as tiled 
-  backgrounds, must be contained within their own image and cannot be used in 
+  Note that images which repeat on BOTH the X and Y axis, such as tiled
+  backgrounds, must be contained within their own image and cannot be used in
   CSS sprites for obvious reasons.
-    
+
   You can also modify the files as they are composited:
-  
-  -pr<pixels> = add padding to the right of the image 
+
+  -pr<pixels> = add padding to the right of the image
   -pl<pixels> = add padding to the left of the image
-  
+
   Filename examples:
-    
+
     border1-middleleft-y-pr300.png
     border1-middleright-y-pl300.png
 
@@ -79,25 +80,26 @@ HELP;
 
 error_reporting(E_ALL); // helpful
 ini_set('memory_limit', '1024M'); // needs enough memory to combine all the images into one
-$path =& $_GET['--path']? $_GET['--path'] : getcwd();
-$prefix =& $_GET['--prefix']? $_GET['--prefix'] : 'sprites';
-$matte =& $_GET['--matte']? $_GET['--matte'] : 'transparent';
+$path = isset($_GET['--path'])? $_GET['--path'] : getcwd();
+$prefix = isset($_GET['--prefix'])? $_GET['--prefix'] : 'sprites';
+$matte = isset($_GET['--matte'])? $_GET['--matte'] : 'transparent';
+$sass = isset($_GET['--sass']);
 
 /**
  * Order of Operations:
- * 
+ *
  * run through each image and get its dimensions
  * use this + filename to calculate the final position and total size of the new sprite image.
  * load each image one-by-one and add it in its place in the final image
  * store the final image as PNG w/ 24-bit  transparency
  *   image quality settings should be set to 100% for jpg, but it probably will not matter
- * 
+ *
  * store one image output that includes n + y (since right now it is mostly wider than taller)
  * and then a separate image output that includes y.
  *   unless i want to specify very far-off x starting point for the y images
  *     @TODO: i wonder which would be more efficient?
- *     
- * @TODO: when tiling -x graphics, what if they are not the same widths? or what if one is odd width vs. even? how does it tile to the end without cutting off the pattern?    
+ *
+ * @TODO: when tiling -x graphics, what if they are not the same widths? or what if one is odd width vs. even? how does it tile to the end without cutting off the pattern?
  */
 
 // Open a known directory, and proceed to read its contents
@@ -128,8 +130,9 @@ if (!count($imgs)) {
 }
 // start with no-repeat images
 // @TODO: build an algorithm to optimize this space by packing odd shaped images as tightly as possible into a corner; like Tetris.
-$x = 0; $y = 0; $css = array('n' => '', 'y' => '', 'x' => '');
+$x = 0; $y = 0; $sass = $css = array('n' => '', 'y' => '', 'x' => '');
 $css['n'] = '/* '. $prefix .'.png */'."\n";
+$sass['n'] = '// '. $prefix .'.png'."\n";
 foreach (array_keys((array) $imgs['n']) as $k) {
   $img =& $imgs['n'][$k];
   $x += (int) $img['padding_left'];
@@ -138,11 +141,14 @@ foreach (array_keys((array) $imgs['n']) as $k) {
   $css['n'] .= '.'. str_replace('.', '-', $k) .'  {'."\n".
   '  background:url('. $prefix .'.png) no-repeat '. px($img['x']*-1) .' '. px($img['y']*-1) .'; width:'. px($img['width']) .'; height:'. px($img['height']) .';'."\n".
   '}'."\n";
+  $sass['n'] .= '.'. str_replace('.', '-', $k) ."\n".
+  '  background: url('. $prefix .'.png) no-repeat '. px($img['x']*-1) .' '. px($img['y']*-1) ."\n".'  width: '. px($img['width']) ."\n".'  height: '. px($img['height']) ."\n";
 }
 image_save($imgs['n'], $path, $prefix .'.png', $x, $y, 'n', $matte); // save sprites
 
 $x = 0; $y = 0;
 $css['y'] = "\n\n".'/* '. $prefix .'-y.png */'."\n";
+$sass['y'] = "\n\n".'// '. $prefix .'-y.png'."\n";
 foreach (array_keys((array) $imgs['y']) as $k) {
   $img =& $imgs['y'][$k];
   $x += (int) $img['padding_left'];
@@ -151,11 +157,14 @@ foreach (array_keys((array) $imgs['y']) as $k) {
   $css['y'] .= '.'. str_replace('.', '-', $k) .'  {'."\n".
   '  background:url('. $prefix .'-y.png) repeat-y '. px($img['x']*-1) .' '. px($img['y']*-1) .'; width:'. px($img['width']) .';'."\n".
   '}'."\n";
+  $sass['y'] .= '.'. str_replace('.', '-', $k) ."\n".
+  '  background: url('. $prefix .'-y.png) repeat-y '. px($img['x']*-1) .' '. px($img['y']*-1) ."\n".'  width: '. px($img['width']) ."\n";
 }
 image_save($imgs['y'], $path, $prefix .'-y.png', $x, $y, 'y', $matte); // save sprites
 
 $x = 0; $y = 0;
 $css['x'] = "\n\n".'/* '. $prefix .'-x.png */'."\n";
+$sass['x'] = "\n\n".'// '. $prefix .'-x.png'."\n";
 foreach (array_keys((array) $imgs['x']) as $k) {
   $img =& $imgs['x'][$k];
   $img['x'] = 0; $x = max($x, $img['width']);
@@ -163,12 +172,19 @@ foreach (array_keys((array) $imgs['x']) as $k) {
   $css['x'] .= '.'. str_replace('.', '-', $k) .'  {'."\n".
   '  background:url('. $prefix .'-x.png) repeat-x '. px($img['x']*-1) .' '. px($img['y']*-1) .'; height:'. px($img['height']) .';'."\n".
   '}'."\n";
+  $sass['x'] .= '.'. str_replace('.', '-', $k) ."\n".
+  '  background: url('. $prefix .'-x.png) repeat-x '. px($img['x']*-1) .' '. px($img['y']*-1) ."\n".'  height: '. px($img['height']) ."\n";
 }
 image_save($imgs['x'], $path, $prefix .'-x.png', $x, $y, 'x', $matte); // save sprites
 
-file_put_contents($path .'/'. $prefix .'.css', implode('', $css)); // generate CSS and save to sprites.css
+if ($sass) {
+  file_put_contents($path .'/'. $prefix .'.sass', implode('', $sass)); // generate SASS and save to sprites.sass
+} 
+else {
+  file_put_contents($path .'/'. $prefix .'.css', implode('', $css)); // generate CSS and save to sprites.css
+}
 
-die("Done."); // end
+die("Done.\n\n"); // end
 
 function px($n) { return $n? ((int) $n) .'px' : 0; }
 
